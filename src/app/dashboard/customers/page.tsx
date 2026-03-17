@@ -119,6 +119,7 @@ export default function CustomerManagementPage() {
         {loading ? (
           <p>Loading customers...</p>
         ) : (
+          <div className="table-responsive">
           <table className="admin-table">
             <thead>
               <tr>
@@ -146,6 +147,7 @@ export default function CustomerManagementPage() {
               )}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -177,7 +179,7 @@ export default function CustomerManagementPage() {
         }
         .admin-form {
           display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
+          grid-template-columns: 1fr 1fr;
           gap: var(--spacing-md);
         }
         .form-group {
@@ -226,6 +228,23 @@ export default function CustomerManagementPage() {
           border-radius: var(--radius-sm);
           margin-bottom: var(--spacing-md);
           font-size: 0.875rem;
+        }
+        .table-responsive {
+          width: 100%;
+          overflow-x: auto;
+        }
+        @media (max-width: 768px) {
+          .admin-form {
+            grid-template-columns: 1fr;
+          }
+          .page-header {
+            flex-wrap: wrap;
+            gap: 0.75rem;
+          }
+          .admin-table th, .admin-table td {
+            padding: 0.6rem;
+            font-size: 0.85rem;
+          }
         }
       `}</style>
     </div>

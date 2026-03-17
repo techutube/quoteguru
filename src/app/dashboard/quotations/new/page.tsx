@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 import { calculateOnRoadPrice, deriveBasePriceFromExShowroom } from '@/utils/pricingEngine';
 
@@ -42,7 +43,7 @@ export default function NewQuotationPage() {
       if (Array.isArray(carData)) setCars(carData);
       if (Array.isArray(accData)) setAccessoriesLookup(accData);
       
-      // Load draft from local storage if available
+      // Load draft AFTER data is fetched so customer select has options
       const savedDraft = localStorage.getItem('quotationDraft_new');
       if (savedDraft) {
         try {
@@ -167,6 +168,7 @@ export default function NewQuotationPage() {
     <div className="builder-page">
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <Link href="/dashboard/quotations" className="btn btn-outline btn-sm">← Back</Link>
           <h2>Quotation Builder</h2>
         </div>
         <div className="step-indicator">
@@ -196,7 +198,11 @@ export default function NewQuotationPage() {
                     <option key={c._id} value={c._id}>{c.name} ({c.phone})</option>
                   ))}
                 </select>
-                {customers.length === 0 && <small>No customers available. Please add a customer first.</small>}
+                {customers.length === 0 && (
+                  <small style={{ color: 'var(--danger)' }}>
+                    No customers found. <Link href="/dashboard/customers" style={{ color: 'var(--brand-blue)', textDecoration: 'underline' }}>Add a customer first →</Link>
+                  </small>
+                )}
               </div>
             </div>
           )}
