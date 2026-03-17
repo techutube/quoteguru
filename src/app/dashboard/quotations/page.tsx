@@ -17,23 +17,31 @@ type Quotation = {
 export default function QuotationsPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [historyQuote, setHistoryQuote] = useState<any>(null);
 
-  const fetchQuotations = async () => {
+  const fetchData = async () => {
     try {
-      const res = await fetch('/api/quotations');
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setQuotations(data);
-      }
+      setLoading(true);
+      const [qRes, uRes] = await Promise.all([
+        fetch('/api/quotations'),
+        fetch('/api/auth/me')
+      ]);
+      
+      const qData = await qRes.json();
+      const uData = await uRes.json();
+
+      if (Array.isArray(qData)) setQuotations(qData);
+      if (uData.user) setCurrentUser(uData.user);
     } catch (err) {
-      console.error('Failed to fetch quotations', err);
+      console.error('Failed to fetch data', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchQuotations();
+    fetchData();
   }, []);
 
   const getStatusClass = (status: string) => {
@@ -45,15 +53,63 @@ export default function QuotationsPage() {
     }
   };
 
+  const canEdit = (quote: Quotation) => {
+    if (!currentUser) return false;
+    const isManager = currentUser.role === 'Manager' || currentUser.role === 'Admin';
+    if (quote.status === 'Draft') return true;
+    if (quote.status === 'Rejected') return true;
+    if (quote.status === 'Approved' && isManager) return true;
+    return false;
+  };
+
   return (
     <div className="quotations-page">
       <div className="page-header">
-        <h2>Quotations</h2>
-        <Link href="/dashboard/quotations/new" className="btn btn-primary">
-          + Create Quotation
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {historyQuote && (
+            <button className="btn btn-outline btn-sm" onClick={() => setHistoryQuote(null)}>
+              &larr; Back
+            </button>
+          )}
+          <h2>{historyQuote ? `History: ${historyQuote.quotationNumber}` : 'Quotations'}</h2>
+        </div>
+        {!historyQuote && (
+          <Link href="/dashboard/quotations/new" className="btn btn-primary">
+            + Create Quotation
+          </Link>
+        )}
       </div>
 
+      {historyQuote && (
+        <div className="card history-card">
+          <div className="history-list">
+            {(!historyQuote.history || historyQuote.history.length === 0) ? (
+              <p style={{ textAlign: 'center', padding: '2rem' }}>No changes recorded yet.</p>
+            ) : (
+              [...historyQuote.history].reverse().map((entry: any, idx: number) => (
+                <div key={idx} className="history-entry">
+                  <div className="history-entry-header">
+                    <span><strong>{entry.changedBy?.name || 'User'}</strong></span>
+                    <span className="edit-time">{new Date(entry.at).toLocaleString()}</span>
+                  </div>
+                  <div className="history-changes">
+                    {Object.entries(entry.changes || {}).map(([field, delta]: [any, any]) => (
+                      <div key={field} className="change-item">
+                        <span className="field-name">{field}:</span>
+                        <span className="old-val">{String(delta.from || 'none')}</span>
+                        <span className="arrow">&rarr;</span>
+                        <span className="new-val">{String(delta.to || 'none')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {!historyQuote && (
       <div className="card table-card">
         {loading ? (
           <p>Loading quotations...</p>
@@ -84,16 +140,18 @@ export default function QuotationsPage() {
                       </span>
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>₹{quote.pricing?.finalOnRoadPrice?.toLocaleString('en-IN') || 0}</td>
-                    <td>
-                      {quote.status === 'Draft' ? (
+                    <td style={{ display: 'flex', gap: '0.5rem' }}>
+                      <Link href={`/dashboard/quotations/${quote._id}`} className="btn btn-sm btn-outline">
+                        View
+                      </Link>
+                      {canEdit(quote) && (
                         <Link href={`/dashboard/quotations/${quote._id}/edit`} className="btn btn-sm btn-outline">
                           Edit
                         </Link>
-                      ) : (
-                        <Link href={`/dashboard/quotations/${quote._id}`} className="btn btn-sm btn-outline">
-                          View
-                        </Link>
                       )}
+                      <button className="btn btn-sm btn-outline" onClick={() => setHistoryQuote(quote)}>
+                        Log
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -107,6 +165,7 @@ export default function QuotationsPage() {
           </div>
         )}
       </div>
+      )}
 
       <style jsx>{`
         .quotations-page {
@@ -159,6 +218,41 @@ export default function QuotationsPage() {
           overflow-x: auto;
           -webkit-overflow-scrolling: touch;
         }
+        .history-card { padding: 0; margin-bottom: 2rem; }
+        .history-list { display: flex; flex-direction: column; }
+        .history-entry { 
+          padding: 1.5rem; 
+          border-bottom: 1px solid var(--border-color);
+        }
+        .history-entry:last-child { border-bottom: none; }
+        .history-entry-header {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 1rem;
+        }
+        .edit-time { 
+          font-size: 0.875rem; 
+          color: var(--text-secondary);
+        }
+        .history-changes {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          background: #f9fafb;
+          padding: 1rem;
+          border-radius: var(--radius-sm);
+        }
+        .change-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          font-size: 0.875rem;
+        }
+        .field-name { font-weight: 600; color: var(--text-secondary); min-width: 120px; }
+        .old-val { color: var(--danger); text-decoration: line-through; }
+        .arrow { color: var(--text-secondary); }
+        .new-val { color: #166534; font-weight: 600; }
+
         @media (max-width: 768px) {
           .page-header {
             flex-wrap: wrap;
@@ -171,6 +265,7 @@ export default function QuotationsPage() {
             padding: 0.6rem 0.75rem;
             font-size: 0.8rem;
           }
+          .field-name { min-width: 80px; }
         }
       `}</style>
     </div>

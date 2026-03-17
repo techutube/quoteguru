@@ -60,6 +60,11 @@ export interface IQuotation extends Document {
   
   status: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected';
   managerComments?: string;
+  history: Array<{
+    changedBy: mongoose.Types.ObjectId;
+    at: Date;
+    changes: Record<string, { from: any; to: any }>;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -117,7 +122,12 @@ const QuotationSchema: Schema = new Schema({
   },
   
   status: { type: String, enum: ['Draft', 'Pending Approval', 'Approved', 'Rejected'], default: 'Draft' },
-  managerComments: String
+  managerComments: String,
+  history: [{
+    changedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    at: { type: Date, default: Date.now },
+    changes: Schema.Types.Mixed
+  }]
 }, { timestamps: true });
 
 export default mongoose.models.Quotation || mongoose.model<IQuotation>('Quotation', QuotationSchema);
