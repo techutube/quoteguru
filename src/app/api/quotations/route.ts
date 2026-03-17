@@ -3,6 +3,8 @@ import connectToDatabase from '@/lib/mongodb';
 import Quotation from '@/models/Quotation';
 import Accessory from '@/models/Accessory';
 import Car from '@/models/Car';
+import Customer from '@/models/Customer';
+import User from '@/models/User';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
@@ -75,7 +77,6 @@ export async function GET(req: Request) {
       
     return NextResponse.json(quotations);
   } catch (error) {
-    console.error("GET Quotations Error:", error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

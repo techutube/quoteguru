@@ -212,19 +212,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           overflow-y: auto;
           display: flex;
           flex-direction: column;
-          gap: 0.25rem;
+          gap: 0.5rem;
         }
 
         .nav-link {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
-          padding: 0.75rem 1rem;
+          gap: 0.75rem;
+          padding: 0.85rem 1rem;
           color: var(--text-secondary);
           font-weight: 500;
           border-radius: var(--radius-md);
           transition: all 0.2s ease-in-out;
-          font-size: 0.9rem;
+          font-size: 0.95rem;
         }
 
         .nav-link:hover {
@@ -240,13 +240,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
 
         .nav-section {
-          padding: var(--spacing-md) 0.5rem 0.5rem;
-          font-size: 0.7rem;
+          padding: var(--spacing-lg) 0.5rem 0.5rem;
+          font-size: 0.75rem;
           text-transform: uppercase;
           letter-spacing: 0.05em;
           color: var(--text-secondary);
           font-weight: 700;
-          margin-top: var(--spacing-md);
+          margin-top: var(--spacing-sm);
+        }
+
+        @media (max-width: 768px) {
+          .nav-link {
+            padding: 1.1rem 1.25rem;
+            font-size: 1.1rem;
+            gap: 1rem;
+          }
+          .sidebar-nav {
+            gap: 0.75rem;
+          }
+          .nav-section {
+            padding-top: var(--spacing-xl);
+            font-size: 0.85rem;
+          }
         }
 
         /* ── Main Area ── */
