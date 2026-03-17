@@ -58,6 +58,10 @@ export async function GET(req: Request) {
   try {
     await connectToDatabase();
     
+    // Explicitly reference models to ensure they are registered in Mongoose
+    // This prevents "MissingSchemaError: Schema hasn't been registered for model" errors in Next.js HMR
+    const _models = [Quotation, Accessory, Car, Customer, User]; 
+
     // Quick role check for filtering
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
@@ -77,6 +81,7 @@ export async function GET(req: Request) {
       
     return NextResponse.json(quotations);
   } catch (error) {
+    console.error("GET Quotations Error:", error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
