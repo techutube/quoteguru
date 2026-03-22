@@ -5,8 +5,8 @@ import '@/styles/globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'DriveDesk',
-  description: 'DriveDesk – Sales Management for Dealerships',
+  title: 'QuoteGuru',
+  description: 'QuoteGuru – Sales Management for Dealerships',
 }
 
 export const viewport = {

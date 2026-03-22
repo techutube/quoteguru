@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import User from '@/models/User';
+import mongoose from 'mongoose';
 
 function decodeJwt(token: string) {
   try {
@@ -23,52 +24,45 @@ export async function GET(req: Request) {
     const token = req.headers.get('cookie')?.split('auth_token=')[1]?.split(';')[0];
     const decoded = token ? decodeJwt(token) : null;
     
+    console.log('API USERS: Decoded token role:', decoded?.role);
+    console.log('API USERS: DB name from mongoose:', mongoose.connection.name);
+
     let filter = {};
     if (decoded) {
-      if (decoded.role === 'Owner' || decoded.role === 'Admin' || decoded.role === 'Super Admin') {
-        filter = {};
-      } else if (decoded.role === 'GM') {
-        // GM sees GSMs reporting to them, their TLs, and Sales Associates
-        const gsms = await User.find({ reportsTo: decoded.userId }).select('_id');
-        const gsmIds = gsms.map(u => u._id);
-        const tls = await User.find({ reportsTo: { $in: gsmIds } }).select('_id');
-        const tlIds = tls.map(u => u._id);
-        filter = { 
-          $or: [
-            { _id: decoded.userId },
-            { reportsTo: decoded.userId }, // Direct GSMs
-            { reportsTo: { $in: gsmIds } }, // TLs under those GSMs
-            { reportsTo: { $in: tlIds } }   // Sales Associates under those TLs
-          ]
-        };
-      } else if (decoded.role === 'GSM') {
-        // GSM sees TLs reporting to them, and Sales Associates under them
-        const tls = await User.find({ reportsTo: decoded.userId }).select('_id');
-        const tlIds = tls.map(u => u._id);
-        filter = { 
-          $or: [
-            { _id: decoded.userId },
-            { reportsTo: decoded.userId }, // Direct TLs
-            { reportsTo: { $in: tlIds } }    // Sales Associates under those TLs
-          ]
-        };
-      } else if (decoded.role === 'Sales Manager') {
-        // Sales Manager sees their reports (Sales Associates)
-        filter = { 
-          $or: [
-            { _id: decoded.userId },
-            { reportsTo: decoded.userId }
-          ]
-        };
+      const currentUserId = new mongoose.Types.ObjectId(decoded.userId);
+      
+      if (decoded.role === 'Super Admin' || decoded.role === 'Admin' || decoded.role === 'Owner') {
+        // High level roles see all users EXCEPT themselves
+        filter = { _id: { $ne: currentUserId } };
       } else {
-        // Sales Associate, F&I Manager, etc. see only themselves
-        filter = { _id: decoded.userId };
+        // For other roles (GM, GSM, SM, TL), find all subordinates RECURSIVELY
+        const getAllSubordinateIds = async (parentId: mongoose.Types.ObjectId): Promise<mongoose.Types.ObjectId[]> => {
+          const directSubordinates = await User.find({ reportsTo: parentId }).select('_id');
+          const directIds = directSubordinates.map(u => u._id);
+          
+          let allSubIds = [...directIds];
+          for (const subId of directIds) {
+            const recursiveIds = await getAllSubordinateIds(subId);
+            allSubIds = [...allSubIds, ...recursiveIds];
+          }
+          return allSubIds;
+        };
+
+        const subordinateIds = await getAllSubordinateIds(currentUserId);
+        
+        filter = { 
+          _id: { $in: subordinateIds }
+        };
       }
     }
 
     const users = await User.find(filter, { passwordHash: 0 })
       .populate('reportsTo', 'name')
       .sort({ createdAt: -1 });
+    
+    console.log('API USERS: Filter used:', JSON.stringify(filter));
+    console.log('API USERS: Users found count:', users.length);
+
     return NextResponse.json(users);
   } catch (error) {
     console.error(error);
@@ -95,23 +89,30 @@ export async function POST(req: Request) {
     }
 
     const { role: currentUserRole } = decoded;
-    let isAllowed = false;
+    
+    // Define User Hierarchy for creation permissions
+    const ROLES_HIERARCHY = [
+      'Super Admin', 
+      'Admin', 
+      'Owner', 
+      'GM', 
+      'GSM', 
+      'Sales Manager', 
+      'Team Lead', 
+      'Sales Associate',
+      'F&I Manager'
+    ];
 
-    if (currentUserRole === 'Super Admin') {
-      isAllowed = true;
-    } else if (currentUserRole === 'Admin') {
-      isAllowed = role !== 'Super Admin';
-    } else if (currentUserRole === 'Owner') {
-      isAllowed = !['Super Admin', 'Admin'].includes(role);
-    } else if (currentUserRole === 'GM') {
-      isAllowed = role === 'GSM';
-    } else if (currentUserRole === 'GSM') {
-      isAllowed = role === 'Sales Manager';
-    } else if (currentUserRole === 'Sales Manager') {
-      isAllowed = role === 'Team Lead';
-    } else if (currentUserRole === 'Team Lead') {
-      isAllowed = role === 'Sales Associate';
-    }
+    const currentRoleLevel = ROLES_HIERARCHY.indexOf(currentUserRole);
+    const targetRoleLevel = ROLES_HIERARCHY.indexOf(role);
+
+    // Can create anyone BELOW in hierarchy (higher index)
+    // Super Admins and Admins have special rules handled by exceptions if needed
+    let isAllowed = targetRoleLevel > currentRoleLevel;
+    
+    // Special exceptions for Admin/Super Admin
+    if (currentUserRole === 'Super Admin') isAllowed = true;
+    if (currentUserRole === 'Admin' && role !== 'Super Admin') isAllowed = true;
 
     if (!isAllowed) {
       return NextResponse.json({ 

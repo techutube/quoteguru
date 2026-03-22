@@ -27,12 +27,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
     }
     
-    // Check Admin routes
-    if (request.nextUrl.pathname.startsWith('/api/users')) {
-      if (!['Super Admin', 'Admin'].includes((decoded as any).role)) {
-        return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
-      }
-    }
+    /* 
+       The API route /api/users handles its own hierarchy filtering, 
+       so we allow all authenticated users to reach it.
+    */
   }
 
   // Protect dashboard routes

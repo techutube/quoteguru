@@ -16,9 +16,13 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentUserName, setCurrentUserName] = useState<string>('');
   
   // Form state
   const [showForm, setShowForm] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'Sales Associate', reportsTo: '' });
   const [error, setError] = useState('');
 
@@ -45,6 +49,8 @@ export default function UserManagementPage() {
         if (data.user) {
           const role = data.user.role;
           setCurrentUserRole(role);
+          setCurrentUserId(data.user.id);
+          setCurrentUserName(data.user.name);
           
           // Set sensible default role for creation
           let defaultRole = 'Sales Associate';
@@ -54,7 +60,7 @@ export default function UserManagementPage() {
           else if (role === 'Team Lead') defaultRole = 'Sales Associate';
           else if (role === 'Owner') defaultRole = 'GM';
           
-          setFormData(prev => ({ ...prev, role: defaultRole }));
+          setFormData(prev => ({ ...prev, role: defaultRole, reportsTo: data.user.id }));
         }
       });
   }, []);
@@ -73,11 +79,54 @@ export default function UserManagementPage() {
         throw new Error(data.error || 'Failed to create user');
       }
       setShowForm(false);
+      setIsEditMode(false);
+      setEditingUserId(null);
       setFormData({ name: '', email: '', password: '', role: 'Sales Associate', reportsTo: '' });
       fetchUsers();
     } catch (err: any) {
       setError(err.message);
     }
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const res = await fetch(`/api/users/${editingUserId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          reportsTo: formData.reportsTo
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update user');
+      }
+      setShowForm(false);
+      setIsEditMode(false);
+      setEditingUserId(null);
+      setFormData({ name: '', email: '', password: '', role: 'Sales Associate', reportsTo: '' });
+      fetchUsers();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const startEdit = (user: User) => {
+    setEditingUserId(user._id);
+    setIsEditMode(true);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: '', // Password not editable here for simplicity, or add a separate field
+      role: user.role,
+      reportsTo: user.reportsTo?._id || ''
+    });
+    setShowForm(true);
   };
 
   const toggleUserStatus = async (id: string, currentStatus: boolean) => {
@@ -126,10 +175,12 @@ export default function UserManagementPage() {
               <label>Email Address</label>
               <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
             </div>
-            <div className="form-group">
-              <label>Password</label>
-              <input type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-            </div>
+            {!isEditMode && (
+              <div className="form-group">
+                <label>Password</label>
+                <input type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+              </div>
+            )}
             <div className="form-group">
               <label>Role</label>
               <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
@@ -148,6 +199,7 @@ export default function UserManagementPage() {
                 )}
                 {currentUserRole === 'Admin' && (
                   <>
+                    <option value="Admin">Admin</option>
                     <option value="Owner">Owner</option>
                     <option value="GM">General Manager (GM)</option>
                     <option value="GSM">General Sales Manager (GSM)</option>
@@ -167,13 +219,33 @@ export default function UserManagementPage() {
                     <option value="F&I Manager">Finance & Insurance (F&I) Manager</option>
                   </>
                 )}
-                {currentUserRole === 'GM' && <option value="GSM">General Sales Manager (GSM)</option>}
-                {currentUserRole === 'GSM' && <option value="Sales Manager">Sales Manager</option>}
-                {currentUserRole === 'Sales Manager' && <option value="Team Lead">Team Lead</option>}
+                {currentUserRole === 'GM' && (
+                  <>
+                    <option value="GSM">General Sales Manager (GSM)</option>
+                    <option value="Sales Manager">Sales Manager</option>
+                    <option value="Team Lead">Team Lead</option>
+                    <option value="Sales Associate">Sales Associate</option>
+                    <option value="F&I Manager">Finance & Insurance (F&I) Manager</option>
+                  </>
+                )}
+                {currentUserRole === 'GSM' && (
+                  <>
+                    <option value="Sales Manager">Sales Manager</option>
+                    <option value="Team Lead">Team Lead</option>
+                    <option value="Sales Associate">Sales Associate</option>
+                    <option value="F&I Manager">Finance & Insurance (F&I) Manager</option>
+                  </>
+                )}
+                {currentUserRole === 'Sales Manager' && (
+                  <>
+                    <option value="Team Lead">Team Lead</option>
+                    <option value="Sales Associate">Sales Associate</option>
+                  </>
+                )}
                 {currentUserRole === 'Team Lead' && <option value="Sales Associate">Sales Associate</option>}
               </select>
             </div>
-            {!['GM', 'GSM', 'Sales Manager', 'Team Lead'].includes(currentUserRole) && (
+            {['Super Admin', 'Admin', 'Owner', 'GM', 'GSM', 'Sales Manager', 'Team Lead'].includes(currentUserRole) && (
               <div className="form-group">
                 <label>Reports To (Manager/Lead)</label>
                 <select 
@@ -181,12 +253,18 @@ export default function UserManagementPage() {
                   onChange={e => setFormData({...formData, reportsTo: e.target.value})}
                 >
                   <option value="">None (Self Managed / Top Level)</option>
+                  
+                  {/* Option for current user as the reportsTo parent */}
+                  <option value={currentUserId}>Self ({currentUserName || 'You'})</option>
+
+                  {/* Options for other managers in the hierarchy */}
                   {users.filter(u => {
-                    if (formData.role === 'Sales Associate') return ['Team Lead', 'Sales Manager', 'GSM', 'GM', 'Owner', 'Admin', 'Super Admin'].includes(u.role);
-                    if (formData.role === 'Team Lead') return ['Sales Manager', 'GSM', 'GM', 'Owner', 'Admin', 'Super Admin'].includes(u.role);
-                    if (formData.role === 'Sales Manager') return ['GSM', 'GM', 'Owner', 'Admin', 'Super Admin'].includes(u.role);
-                    if (formData.role === 'GSM') return ['GM', 'Owner', 'Admin', 'Super Admin'].includes(u.role);
-                    if (formData.role === 'GM') return ['Owner', 'Admin', 'Super Admin'].includes(u.role);
+                    const r = formData.role;
+                    if (r === 'Sales Associate') return ['Team Lead', 'Sales Manager', 'GSM', 'GM'].includes(u.role);
+                    if (r === 'Team Lead') return ['Sales Manager', 'GSM', 'GM'].includes(u.role);
+                    if (r === 'Sales Manager') return ['GSM', 'GM'].includes(u.role);
+                    if (r === 'GSM') return ['GM'].includes(u.role);
+                    if (r === 'GM') return ['Owner', 'Admin', 'Super Admin'].includes(u.role);
                     return false;
                   }).map(u => (
                     <option key={u._id} value={u._id}>{u.name} ({u.role})</option>
@@ -195,7 +273,13 @@ export default function UserManagementPage() {
               </div>
             )}
             <div className="form-actions">
-              <button type="submit" className="btn btn-primary">Create User</button>
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                onClick={isEditMode ? handleUpdateUser : handleCreateUser}
+              >
+                {isEditMode ? 'Update User' : 'Create User'}
+              </button>
             </div>
           </form>
         </div>
@@ -232,12 +316,20 @@ export default function UserManagementPage() {
                   </td>
                   <td>{new Date(user.createdAt).toLocaleDateString()}</td>
                   <td>
-                    <button 
-                      className="btn btn-sm btn-outline"
-                      onClick={() => toggleUserStatus(user._id, user.isActive)}
-                    >
-                      {user.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button 
+                        className="btn btn-sm btn-outline"
+                        onClick={() => startEdit(user)}
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        className="btn btn-sm btn-outline"
+                        onClick={() => toggleUserStatus(user._id, user.isActive)}
+                      >
+                        {user.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

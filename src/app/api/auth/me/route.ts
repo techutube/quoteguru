@@ -24,6 +24,7 @@ export async function GET() {
   }
 
   const decoded = decodeJwt(token);
+  console.log('API ME: Decoded user:', decoded?.email, 'Role:', decoded?.role);
 
   if (!decoded) {
     return NextResponse.json({ error: 'Invalid token' }, { status: 401 });

@@ -69,7 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <aside className={`sidebar ${isSidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-header">
-          <h2>DriveDesk</h2>
+          <h2>QuoteGuru</h2>
           <span className="badge">{user?.role}</span>
         </div>
 
@@ -129,7 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
 
           <div className="page-title">
-            <h1>DriveDesk</h1>
+            <h1>QuoteGuru</h1>
           </div>
 
           <div className="topbar-actions">

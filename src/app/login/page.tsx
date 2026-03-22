@@ -45,7 +45,7 @@ export default function LoginPage() {
     <div className="main-container auth-container">
       <div className="login-card">
         <div className="login-header">
-          <h2>DriveDesk</h2>
+          <h2>QuoteGuru</h2>
           <p>Dealership Portal Login</p>
         </div>
 

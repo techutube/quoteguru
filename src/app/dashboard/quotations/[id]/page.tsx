@@ -55,7 +55,7 @@ export default function QuotationViewPage({ params }: { params: Promise<{ id: st
         <div id="pdf-content" className="pdf-document">
           <div className="doc-header">
             <div className="dealer-info">
-              <h1>DriveDesk</h1>
+              <h1>QuoteGuru</h1>
               <p>Authorized Dealership Central</p>
               <p>Main Road, City Center - 400001</p>
               <p>Ph: +91 1800 209 7979</p>

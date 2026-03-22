@@ -76,15 +76,17 @@ export default function CarInventoryPage() {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setUploading(true);
     setError('');
     setUploadSuccess('');
 
     const fd = new FormData();
-    fd.append('file', file);
+    for (let i = 0; i < files.length; i++) {
+      fd.append('file', files[i]);
+    }
 
     try {
       const res = await fetch('/api/cars/upload', {
@@ -141,7 +143,7 @@ export default function CarInventoryPage() {
             </button>
             <label className="btn btn-outline" style={{ cursor: 'pointer', margin: 0 }}>
               {uploading ? 'Uploading...' : '⬆️ Bulk Upload CSV'}
-              <input type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} disabled={uploading}/>
+              <input type="file" accept=".csv" multiple onChange={handleFileUpload} style={{ display: 'none' }} disabled={uploading}/>
             </label>
             <button className="btn btn-primary" onClick={() => setShowForm(true)}>
               + Add New Car
