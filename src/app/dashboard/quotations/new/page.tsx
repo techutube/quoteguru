@@ -73,10 +73,41 @@ export default function NewQuotationPage() {
     }).catch(err => console.error("Error fetching form data:", err));
   }, []);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     const nextStep = Math.min(7, step + 1);
-    setStep(nextStep);
-    localStorage.setItem('quotationDraft_new', JSON.stringify({ formData, step: nextStep, hasExchange, selectedDiscounts }));
+    
+    // Auto-save draft when progressing from Step 2 to Step 3
+    if (step === 2 && formData.customer && formData.car) {
+      setLoading(true);
+      setError('');
+      try {
+        const payload = { ...formData, status: 'Draft' };
+        if (!hasExchange) {
+          delete (payload as any).exchangeVehicle;
+        }
+        
+        const res = await fetch('/api/quotations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to auto-save draft');
+        }
+        
+        const data = await res.json();
+        localStorage.removeItem('quotationDraft_new');
+        router.replace(`/dashboard/quotations/${data._id}/edit?step=3`);
+      } catch (err: any) {
+        setError(err.message);
+        setLoading(false);
+      }
+    } else {
+      setStep(nextStep);
+      localStorage.setItem('quotationDraft_new', JSON.stringify({ formData, step: nextStep, hasExchange, selectedDiscounts }));
+    }
   };
   
   const handlePrev = () => setStep(s => Math.max(1, s - 1));
@@ -510,7 +541,7 @@ export default function NewQuotationPage() {
               <button 
                 className="btn btn-primary" 
                 onClick={handleNext} 
-                disabled={(step === 1 && !formData.customer) || (step === 2 && !formData.car)}
+                disabled={(step === 1 && !formData.customer) || (step === 2 && !formData.car) || loading}
               >
                 Next Step
               </button>

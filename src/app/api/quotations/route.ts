@@ -64,29 +64,36 @@ export async function GET(req: Request) {
 
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
-    let userFilter = {};
+    let userFilter: any = {};
     if (token) {
       const decoded: any = verifyToken(token);
       if (decoded) {
-        if (decoded.role === 'Owner' || decoded.role === 'Admin' || decoded.role === 'Super Admin' || decoded.role === 'F&I Manager') {
-          // These roles see everything
-          userFilter = {};
-        } else {
-          // Recursive subordinate lookup for GM, GSM, SM, TL
-          const getAllSubordinateIds = async (parentId: string): Promise<string[]> => {
-            const directSubordinates = await User.find({ reportsTo: parentId }).select('_id');
-            const directIds = directSubordinates.map(u => u._id.toString());
-            
-            let allSubIds = [...directIds];
-            for (const subId of directIds) {
-              const recursiveIds = await getAllSubordinateIds(subId);
-              allSubIds = [...allSubIds, ...recursiveIds];
-            }
-            return allSubIds;
-          };
+        // Recursive subordinate lookup
+        const getAllSubordinateIds = async (parentId: string): Promise<string[]> => {
+          const directSubordinates = await User.find({ reportsTo: parentId }).select('_id');
+          const directIds = directSubordinates.map(u => u._id.toString());
+          
+          let allSubIds = [...directIds];
+          for (const subId of directIds) {
+            const recursiveIds = await getAllSubordinateIds(subId);
+            allSubIds = [...allSubIds, ...recursiveIds];
+          }
+          return allSubIds;
+        };
 
-          const subordinateIds = await getAllSubordinateIds(decoded.userId);
-          userFilter = { salesperson: { $in: [decoded.userId, ...subordinateIds] } };
+        const subordinateIds = await getAllSubordinateIds(decoded.userId);
+        const hierarchyUserIds = [decoded.userId, ...subordinateIds];
+
+        if (['Owner', 'Admin', 'Super Admin', 'F&I Manager'].includes(decoded.role)) {
+          // See all non-drafts by default, but only see Drafts if in hierarchy
+          userFilter = {
+             $or: [
+               { status: { $ne: 'Draft' } },
+               { salesperson: { $in: hierarchyUserIds } }
+             ]
+          };
+        } else {
+          userFilter = { salesperson: { $in: hierarchyUserIds } };
         }
       }
     }

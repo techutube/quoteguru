@@ -74,11 +74,16 @@ export async function POST(req: Request) {
   try {
     await connectToDatabase();
     const body = await req.json();
-    const { name, email, password, role, reportsTo } = body;
+    const { name, email, phone, password, role, reportsTo } = body;
 
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !phone) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    // Validation
+    if (name.length < 3) return NextResponse.json({ error: 'Name must be at least 3 characters' }, { status: 400 });
+    if (!/^\d{10}$/.test(phone)) return NextResponse.json({ error: 'Phone number must be exactly 10 digits' }, { status: 400 });
+    if (!/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
 
     // Role-based authorization for creation
     const token = req.headers.get('cookie')?.split('auth_token=')[1]?.split(';')[0];
@@ -129,6 +134,7 @@ export async function POST(req: Request) {
     const user = await User.create({
       name,
       email,
+      phone,
       passwordHash: password, 
       role: role || 'Sales Associate',
       reportsTo: reportsTo || (['GM', 'GSM', 'Sales Manager', 'Team Lead'].includes(currentUserRole) ? decoded.userId : undefined)

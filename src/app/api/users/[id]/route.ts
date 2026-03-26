@@ -8,11 +8,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const resolvedParams = await params;
     const id = resolvedParams.id;
     const body = await req.json();
-    const { name, email, role, reportsTo, isActive } = body;
+    const { name, email, phone, role, reportsTo, isActive } = body;
+
+    // Validation
+    if (name !== undefined && name.length < 3) return NextResponse.json({ error: 'Name must be at least 3 characters' }, { status: 400 });
+    if (phone !== undefined && !/^\d{10}$/.test(phone)) return NextResponse.json({ error: 'Phone number must be exactly 10 digits' }, { status: 400 });
+    if (email !== undefined && !/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
 
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
     if (role !== undefined) updateData.role = role;
     if (reportsTo !== undefined) updateData.reportsTo = reportsTo || null;
     if (isActive !== undefined) updateData.isActive = isActive;

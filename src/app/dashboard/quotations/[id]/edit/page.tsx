@@ -14,6 +14,12 @@ export default function EditQuotationPage({ params }: { params: Promise<{ id: st
   const [error, setError] = useState('');
   const [isResubmitting, setIsResubmitting] = useState(false);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const s = params.get('step');
+    if (s) setStep(parseInt(s, 10));
+  }, []);
+
   // Data fetching
   const [customers, setCustomers] = useState<any[]>([]);
   const [cars, setCars] = useState<any[]>([]);
@@ -103,8 +109,35 @@ export default function EditQuotationPage({ params }: { params: Promise<{ id: st
     });
   }, [id]);
 
-  const handleNext = () => setStep(s => Math.min(7, s + 1));
-  const handlePrev = () => setStep(s => Math.max(1, s - 1));
+  const autoSave = async () => {
+    try {
+      const payload: any = { ...formData, status: 'Draft' };
+      if (!hasExchange) delete payload.exchangeVehicle;
+      
+      if (!selectedDiscounts.consumer) payload.discounts.festival = 0;
+      if (!selectedDiscounts.intervention) payload.discounts.managerSpecial = 0;
+      if (!selectedDiscounts.exchange) payload.discounts.exchangeBonus = 0;
+      if (!selectedDiscounts.corporate) payload.discounts.corporate = 0;
+
+      await fetch(`/api/quotations/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.error('Autosave failed:', e);
+    }
+  };
+
+  const handleNext = () => {
+    setStep(s => Math.min(7, s + 1));
+    if (initialStatus === 'Draft') autoSave();
+  };
+  
+  const handlePrev = () => {
+    setStep(s => Math.max(1, s - 1));
+    if (initialStatus === 'Draft') autoSave();
+  };
 
   const handleAccessoryToggle = (accId: string) => {
     setFormData(prev => {

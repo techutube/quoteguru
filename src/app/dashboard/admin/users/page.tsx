@@ -6,6 +6,7 @@ type User = {
   _id: string;
   name: string;
   email: string;
+  phone: string;
   role: string;
   reportsTo?: { _id: string; name: string };
   isActive: boolean;
@@ -23,7 +24,7 @@ export default function UserManagementPage() {
   const [showForm, setShowForm] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'Sales Associate', reportsTo: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', password: '', role: 'Sales Associate', reportsTo: '' });
   const [error, setError] = useState('');
 
   const fetchUsers = async () => {
@@ -81,7 +82,7 @@ export default function UserManagementPage() {
       setShowForm(false);
       setIsEditMode(false);
       setEditingUserId(null);
-      setFormData({ name: '', email: '', password: '', role: 'Sales Associate', reportsTo: '' });
+      setFormData({ name: '', email: '', phone: '', password: '', role: 'Sales Associate', reportsTo: '' });
       fetchUsers();
     } catch (err: any) {
       setError(err.message);
@@ -98,6 +99,7 @@ export default function UserManagementPage() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
+          phone: formData.phone,
           role: formData.role,
           reportsTo: formData.reportsTo
         })
@@ -109,7 +111,7 @@ export default function UserManagementPage() {
       setShowForm(false);
       setIsEditMode(false);
       setEditingUserId(null);
-      setFormData({ name: '', email: '', password: '', role: 'Sales Associate', reportsTo: '' });
+      setFormData({ name: '', email: '', phone: '', password: '', role: 'Sales Associate', reportsTo: '' });
       fetchUsers();
     } catch (err: any) {
       setError(err.message);
@@ -122,6 +124,7 @@ export default function UserManagementPage() {
     setFormData({
       name: user.name,
       email: user.email,
+      phone: user.phone || '',
       password: '', // Password not editable here for simplicity, or add a separate field
       role: user.role,
       reportsTo: user.reportsTo?._id || ''
@@ -174,6 +177,10 @@ export default function UserManagementPage() {
             <div className="form-group">
               <label>Email Address</label>
               <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label>Phone Number</label>
+              <input type="tel" required value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} maxLength={10} minLength={10} pattern="\d{10}" title="Must be exactly 10 digits" />
             </div>
             {!isEditMode && (
               <div className="form-group">
@@ -294,6 +301,7 @@ export default function UserManagementPage() {
               <tr>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Phone</th>
                 <th>Role</th>
                 <th>Status</th>
                 <th>Joined</th>
@@ -305,6 +313,7 @@ export default function UserManagementPage() {
                 <tr key={user._id}>
                   <td>{user.name}</td>
                   <td>{user.email}</td>
+                  <td>{user.phone || 'N/A'}</td>
                   <td>
                     <span className={`role-badge role-${user.role.toLowerCase().replace(' ', '-')}`}>{user.role}</span>
                     {user.reportsTo && <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Reports to: {user.reportsTo.name}</div>}
