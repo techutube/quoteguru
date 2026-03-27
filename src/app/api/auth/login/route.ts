@@ -15,13 +15,15 @@ export async function POST(req: Request) {
 
     await connectToDatabase();
 
-    const user = await User.findOne({ email });
+    // Make email lookup case-insensitive and trimmed
+    const normalizedEmail = email.trim();
+    const user = await User.findOne({ email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') } });
 
     let isPasswordValid = false;
     if (user) {
       // Fallback for existing plaintext passwords to prevent lockout while migrating
       // For new accounts, passwordHash will be a bcrypt hash.
-      if (user.passwordHash === password) {
+      if (user.passwordHash === password.trim() || user.passwordHash === password) {
         isPasswordValid = true;
       } else {
         isPasswordValid = await bcrypt.compare(password, user.passwordHash);
