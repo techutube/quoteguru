@@ -175,8 +175,16 @@ export default function UserManagementPage() {
               <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
             </div>
             <div className="form-group">
-              <label>Email Address</label>
-              <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              <label>Email Address (@quoteguru.com)</label>
+              <input 
+                type="email" 
+                required 
+                value={formData.email} 
+                onChange={e => setFormData({...formData, email: e.target.value})} 
+                pattern=".*@quoteguru\.com$" 
+                title="Email must end with @quoteguru.com" 
+                placeholder="employee@quoteguru.com"
+              />
             </div>
             <div className="form-group">
               <label>Phone Number</label>

@@ -31,39 +31,43 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 }
 
-async function recalculateQuotationPricing(carId: string, accessoryIds: string[], charges: any, discounts: any) {
+async function recalculateQuotationPricing(carId: string, accessoryIds: string[], charges: any, discounts: any, exchangeValue: number = 0) {
   const car = await Car.findById(carId);
   if (!car) throw new Error('Car not found');
 
   const accessories = await Accessory.find({ _id: { $in: accessoryIds } });
   const accTotal = accessories.reduce((sum, a) => sum + a.price, 0);
 
-  const basePrice = deriveBasePriceFromExShowroom(
-    car.exShowroomPrice,
-    car.fuelType,
-    car.carLengthMeters,
-    car.engineCapacityCC,
-    car.isSUV
-  );
+  const exShowroom = car.exShowroomPrice;
+  const chargesTotal = 
+    (Number(charges?.registration) || 0) + 
+    (Number(charges?.insurance) || 0) + 
+    (Number(charges?.handling) || 0) + 
+    (Number(charges?.fastag) || 0) + 
+    (Number(charges?.extendedWarranty) || 0);
 
-  const result = calculateOnRoadPrice({
-    basePrice,
-    carLengthMeters: car.carLengthMeters,
-    engineCapacityCC: car.engineCapacityCC,
-    fuelType: car.fuelType,
-    isSUV: car.isSUV,
-    registrationCharges: charges.registration === '' ? undefined : Number(charges.registration),
+  const subTotal = exShowroom + accTotal + chargesTotal;
+  const gstTotal = Math.round(subTotal * 0.28); 
+  
+  const discountTotal = 
+    (Number(discounts?.dealer) || 0) + 
+    (Number(discounts?.exchangeBonus) || 0) + 
+    (Number(discounts?.corporate) || 0) + 
+    (Number(discounts?.festival) || 0) + 
+    (Number(discounts?.managerSpecial) || 0);
+
+  const finalOnRoadPrice = subTotal + gstTotal - discountTotal - exchangeValue;
+
+  return {
+    exShowroom,
     accessoriesTotal: accTotal,
-    handlingCharges: Number(charges.handling),
-    extendedWarranty: Number(charges.extendedWarranty),
-    fastagCharges: charges.fastag === '' ? 550 : Number(charges.fastag),
-    dealerDiscount: Number(discounts.dealer),
-    exchangeBonus: Number(discounts.exchangeBonus),
-    corporateDiscount: Number(discounts.corporate),
-    specialDiscount: Number(discounts.festival) + Number(discounts.managerSpecial)
-  });
-
-  return result;
+    chargesTotal,
+    subTotal,
+    gstTotal,
+    discountTotal,
+    exchangeValue,
+    finalOnRoadPrice
+  };
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -144,12 +148,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
     });
 
-    // Handle Complex Nested Fields (Discounts, Charges, Accessories)
+    // Handle Complex Nested Fields (Discounts, Charges, Accessories, etc.)
     const checkNested = (fieldName: string) => {
       if (!body[fieldName]) return;
+      if (!quotation[fieldName]) quotation[fieldName] = {};
+      
       Object.keys(body[fieldName]).forEach(key => {
         const oldVal = quotation[fieldName][key];
-        const newVal = body[fieldName][key];
+        let newVal = body[fieldName][key];
+
+        // Sanitize empty strings to prevent Mongoose enum validation errors
+        if (newVal === '') {
+          newVal = undefined;
+        }
+
         if (newVal !== undefined && oldVal !== newVal) {
           changes[`${fieldName}.${key}`] = { from: oldVal, to: newVal };
           quotation[fieldName][key] = newVal;
@@ -159,6 +171,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     checkNested('charges');
     checkNested('discounts');
+    checkNested('location');
+    checkNested('enquiryDetails');
+    checkNested('finance');
 
     if (body.accessories && JSON.stringify(body.accessories) !== JSON.stringify(quotation.accessories)) {
       changes.accessories = { from: quotation.accessories, to: body.accessories };
@@ -177,7 +192,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         quotation.car.toString(),
         quotation.accessories.map((a: any) => a.toString()),
         quotation.charges,
-        quotation.discounts
+        quotation.discounts,
+        body.exchangeVehicle?.expectedValue || quotation.exchangeVehicle?.expectedValue || 0
       );
       
       // Track pricing changes

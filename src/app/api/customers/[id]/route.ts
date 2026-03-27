@@ -26,21 +26,40 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    // Detect changes
+    // Detect changes dynamically across all schema fields
     const changes: Record<string, { from: any; to: any }> = {};
-    const relevantFields = ['name', 'phone', 'email', 'address', 'city', 'state'];
+    const ignoreFields = ['_id', '__v', 'history', 'createdAt', 'updatedAt'];
     
     let hasChanges = false;
-    for (const field of relevantFields) {
-      const oldValue = existingCustomer[field];
-      const newValue = body[field];
-      
-      if (newValue !== undefined && oldValue !== newValue) {
-        changes[field] = { from: oldValue, to: newValue };
-        existingCustomer[field] = newValue;
-        hasChanges = true;
+    
+    Object.keys(body).forEach((key) => {
+      if (ignoreFields.includes(key)) return;
+
+      if (key === 'nominee' && typeof body.nominee === 'object') {
+        if (!existingCustomer.nominee) existingCustomer.nominee = {};
+        Object.keys(body.nominee).forEach(subKey => {
+           let newVal = body.nominee[subKey];
+           if (newVal === '') newVal = undefined; // Sanitize empty strings
+           const oldVal = existingCustomer.nominee[subKey];
+           
+           if (newVal !== undefined && oldVal !== newVal) {
+             changes[`nominee.${subKey}`] = { from: oldVal, to: newVal };
+             existingCustomer.nominee[subKey] = newVal;
+             hasChanges = true;
+           }
+        });
+      } else {
+        let newValue = body[key];
+        if (newValue === '') newValue = undefined; // Sanitize empty enum strings
+        const oldValue = existingCustomer[key];
+        
+        if (newValue !== undefined && oldValue !== newValue) {
+          changes[key] = { from: oldValue, to: newValue };
+          existingCustomer[key] = newValue;
+          hasChanges = true;
+        }
       }
-    }
+    });
 
     if (hasChanges) {
       // Add to history

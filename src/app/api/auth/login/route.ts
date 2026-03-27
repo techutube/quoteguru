@@ -3,6 +3,7 @@ import connectToDatabase from '@/lib/mongodb';
 import User from '@/models/User';
 import { signToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
   try {
@@ -16,8 +17,18 @@ export async function POST(req: Request) {
 
     const user = await User.findOne({ email });
 
-    if (!user || user.passwordHash !== password) {
-      // For real app, use bcrypt.compare(), but keeping it simple for now based on requirements
+    let isPasswordValid = false;
+    if (user) {
+      // Fallback for existing plaintext passwords to prevent lockout while migrating
+      // For new accounts, passwordHash will be a bcrypt hash.
+      if (user.passwordHash === password) {
+        isPasswordValid = true;
+      } else {
+        isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      }
+    }
+
+    if (!user || !isPasswordValid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
@@ -53,8 +64,8 @@ export async function POST(req: Request) {
       } 
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error', details: error.message, stack: error.stack }, { status: 500 });
   }
 }

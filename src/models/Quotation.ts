@@ -5,6 +5,19 @@ export interface IQuotation extends Document {
   customer: mongoose.Types.ObjectId;
   salesperson: mongoose.Types.ObjectId;
   
+  // Enq & Location Details
+  location: {
+    showroom?: string;
+    placeOfSupply?: string;
+    state?: string;
+  };
+  enquiryDetails: {
+    source?: string;
+    gstCategory?: string;
+    relation?: string;
+    relationName?: string;
+  };
+  
   // Car Details
   car: mongoose.Types.ObjectId;
   selectedColor: string;
@@ -40,6 +53,9 @@ export interface IQuotation extends Document {
   
   // Finance
   finance?: {
+    type?: string;
+    agentType?: string;
+    financer?: string;
     downPayment: number;
     loanAmount: number;
     interestRate: number;
@@ -74,6 +90,19 @@ const QuotationSchema: Schema = new Schema({
   customer: { type: Schema.Types.ObjectId, ref: 'Customer', required: true },
   salesperson: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   
+  location: {
+    showroom: String,
+    placeOfSupply: String,
+    state: String
+  },
+  
+  enquiryDetails: {
+    source: String,
+    gstCategory: String,
+    relation: String,
+    relationName: String
+  },
+  
   car: { type: Schema.Types.ObjectId, ref: 'Car', required: true },
   selectedColor: { type: String, required: true },
   
@@ -104,6 +133,9 @@ const QuotationSchema: Schema = new Schema({
   },
   
   finance: {
+    type: { type: String, enum: ['Cash', 'Finance', 'Lease'] },
+    agentType: { type: String, enum: ['DSA', 'DST', 'Inhouse'] },
+    financer: String,
     downPayment: Number,
     loanAmount: Number,
     interestRate: Number,

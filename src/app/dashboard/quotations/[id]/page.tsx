@@ -10,6 +10,9 @@ export default function QuotationViewPage({ params }: { params: Promise<{ id: st
   const { id } = use(params);
   const [quotation, setQuotation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   useEffect(() => {
     fetch(`/api/quotations/${id}`)
@@ -28,7 +31,6 @@ export default function QuotationViewPage({ params }: { params: Promise<{ id: st
     const input = document.getElementById('pdf-content');
     if (!input) return;
 
-    // A4 size: 210 x 297 mm
     html2canvas(input, { scale: 2 }).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -40,6 +42,55 @@ export default function QuotationViewPage({ params }: { params: Promise<{ id: st
     });
   };
 
+  const emailPDF = async () => {
+    const targetEmail = prompt('Enter recipient email:', quotation?.customer?.email || '');
+    if (!targetEmail) return;
+
+    setSendingEmail(true);
+    setEmailError('');
+    setEmailSuccess('');
+
+    const input = document.getElementById('pdf-content');
+    if (!input) {
+      setSendingEmail(false);
+      return;
+    }
+
+    try {
+      const canvas = await html2canvas(input, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      const pdfBaseURL = pdf.output('datauristring');
+
+      const res = await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: targetEmail,
+          subject: `Your Dealership Quotation: ${quotation.quotationNumber}`,
+          body: `Dear ${quotation.customer?.name || 'Customer'},\n\nPlease find the requested vehicle quotation attached.\n\nThank you,\nQuoteGuru Dealership`,
+          pdfBase64: pdfBaseURL,
+          filename: `Quotation_${quotation.quotationNumber}.pdf`
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send email');
+
+      setEmailSuccess('Quotation sent successfully!');
+      setTimeout(() => setEmailSuccess(''), 4000);
+    } catch (err: any) {
+      console.error(err);
+      setEmailError(err.message || 'Error generating/sending PDF');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center">Loading quotation document...</div>;
   if (!quotation) return <div className="p-8 text-center">Quotation not found.</div>;
 
@@ -47,7 +98,14 @@ export default function QuotationViewPage({ params }: { params: Promise<{ id: st
     <div className="view-page">
       <div className="actions-bar">
         <Link href="/dashboard/quotations" className="btn btn-outline btn-sm">← Back to List</Link>
-        <button className="btn btn-primary" onClick={generatePDF}>📄 Download PDF</button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          {emailSuccess && <span style={{ color: 'green', fontSize: '13px', fontWeight: 'bold' }}>{emailSuccess}</span>}
+          {emailError && <span style={{ color: 'red', fontSize: '13px', fontWeight: 'bold' }}>{emailError}</span>}
+          <button className="btn btn-outline" onClick={emailPDF} disabled={sendingEmail}>
+            {sendingEmail ? 'Sending...' : '📧 Email PDF'}
+          </button>
+          <button className="btn btn-primary" onClick={generatePDF}>📄 Download PDF</button>
+        </div>
       </div>
 
       <div className="pdf-container">
@@ -77,6 +135,9 @@ export default function QuotationViewPage({ params }: { params: Promise<{ id: st
             <div className="customer-info doc-section">
               <h3>Customer Details</h3>
               <p><strong>Name:</strong> {quotation.customer?.name}</p>
+              {quotation.enquiryDetails?.relation && quotation.enquiryDetails?.relationName && (
+                <p><strong>Rel:</strong> {quotation.enquiryDetails.relation} {quotation.enquiryDetails.relationName}</p>
+              )}
               <p><strong>Phone:</strong> {quotation.customer?.phone}</p>
               <p><strong>Address:</strong> {quotation.customer?.address || '-'}, {quotation.customer?.city || '-'} - {quotation.customer?.state || '-'}</p>
             </div>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import User from '@/models/User';
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 function decodeJwt(token: string) {
   try {
@@ -83,7 +84,8 @@ export async function POST(req: Request) {
     // Validation
     if (name.length < 3) return NextResponse.json({ error: 'Name must be at least 3 characters' }, { status: 400 });
     if (!/^\d{10}$/.test(phone)) return NextResponse.json({ error: 'Phone number must be exactly 10 digits' }, { status: 400 });
-    if (!/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
+    if (!/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: 'Invalid email address format' }, { status: 400 });
+    if (!email.toLowerCase().endsWith('@quoteguru.com')) return NextResponse.json({ error: 'Employee emails must use the @quoteguru.com domain' }, { status: 400 });
 
     // Role-based authorization for creation
     const token = req.headers.get('cookie')?.split('auth_token=')[1]?.split(';')[0];
@@ -130,12 +132,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email already exists' }, { status: 400 });
     }
 
-    // Direct password save for prototype. Use bcrypt in production.
+    // Securely hash the password before saving it to the database
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const user = await User.create({
       name,
       email,
       phone,
-      passwordHash: password, 
+      passwordHash: hashedPassword, 
       role: role || 'Sales Associate',
       reportsTo: reportsTo || (['GM', 'GSM', 'Sales Manager', 'Team Lead'].includes(currentUserRole) ? decoded.userId : undefined)
     });

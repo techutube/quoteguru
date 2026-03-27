@@ -121,6 +121,17 @@ export async function POST(req: Request) {
     
     const body = await req.json();
     
+    // Clean up empty enum strings to prevent Mongoose validation errors
+    if (body.finance) {
+      if (body.finance.type === '') delete body.finance.type;
+      if (body.finance.agentType === '') delete body.finance.agentType;
+    }
+    if (body.enquiryDetails) {
+      if (body.enquiryDetails.source === '') delete body.enquiryDetails.source;
+      if (body.enquiryDetails.gstCategory === '') delete body.enquiryDetails.gstCategory;
+      if (body.enquiryDetails.relation === '') delete body.enquiryDetails.relation;
+    }
+
     // Generate unique Quotation Number (e.g., QUOTE-YYYYMMDD-XXXX)
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const count = await Quotation.countDocuments({ quotationNumber: { $regex: `^QUOTE-${dateStr}` } });

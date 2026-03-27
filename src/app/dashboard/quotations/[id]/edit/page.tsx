@@ -6,6 +6,16 @@ import Link from 'next/link';
 
 import { calculateOnRoadPrice, deriveBasePriceFromExShowroom } from '@/utils/pricingEngine';
 
+const SHOWROOMS = ['Civil Lines Showroom', 'Mundera Showroom', 'Phaphamau Showroom', 'Pratapgarh Showroom'];
+const PLACES_OF_SUPPLY = ['Prayagraj (009)', 'Other (999)'];
+const ENQUIRY_SOURCES = ['CAMPAIGN/EVENT', 'Car Dekho', 'Digital Lead', 'IN-BOUND CALL', 'NEWSPAPER', 'Reference', 'WALK-INS'];
+const GST_CATEGORIES = ['Registered', 'Non Registered', 'Composition', 'Tax Exemption', 'SEZ'];
+const RELATIONS = ['C/O', 'D/O', 'Not Applicable', 'PROPRIETOR', 'REP. BY', 'S/O', 'W/O'];
+const INDIAN_STATES = ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Andaman and Nicobar', 'Chandigarh', 'Delhi', 'Lakshadweep', 'Puducherry'];
+const FINANCE_TYPES = ['Cash', 'Finance', 'Lease'];
+const AGENT_TYPES = ['DSA', 'DST', 'Inhouse'];
+const FINANCERS = ['HDFC Bank', 'SBI', 'ICICI Bank', 'Axis Bank', 'Kotak Mahindra', 'Bank of Baroda', 'Tata Capital', 'Cholamandalam'];
+
 export default function EditQuotationPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = use(params);
@@ -34,13 +44,16 @@ export default function EditQuotationPage({ params }: { params: Promise<{ id: st
   });
 
   // Form State
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     customer: '',
+    location: { showroom: '', placeOfSupply: '', state: '' },
+    enquiryDetails: { source: '', gstCategory: '', relation: '', relationName: '' },
     car: '',
     selectedColor: '',
     accessories: [] as string[],
     charges: { registration: '' as number | string, insurance: '' as number | string, handling: 0, fastag: 550 as number | string, extendedWarranty: 0 },
     discounts: { dealer: 0, exchangeBonus: 0, corporate: 0, festival: 0, managerSpecial: 0 },
+    finance: { type: '', agentType: '', financer: '', downPayment: 0, loanAmount: 0, interestRate: 0, tenureYears: 0 },
     exchangeVehicle: { brand: '', model: '', year: new Date().getFullYear(), condition: 'Good', expectedValue: 0 }
   });
 
@@ -64,6 +77,8 @@ export default function EditQuotationPage({ params }: { params: Promise<{ id: st
       if (quoteData && !quoteData.error) {
         setFormData({
           customer: quoteData.customer?._id || quoteData.customer,
+          location: quoteData.location || { showroom: '', placeOfSupply: '', state: '' },
+          enquiryDetails: quoteData.enquiryDetails || { source: '', gstCategory: '', relation: '' },
           car: quoteData.car?._id || quoteData.car,
           selectedColor: quoteData.selectedColor || '',
           accessories: quoteData.accessories?.map((a: any) => a._id || a) || [],
@@ -81,6 +96,7 @@ export default function EditQuotationPage({ params }: { params: Promise<{ id: st
             festival: quoteData.discounts?.festival || 0,
             managerSpecial: quoteData.discounts?.managerSpecial || 0
           },
+          finance: quoteData.finance || { type: '', agentType: '', financer: '', downPayment: 0, loanAmount: 0, interestRate: 0, tenureYears: 0 },
           exchangeVehicle: quoteData.exchangeVehicle || { brand: '', model: '', year: new Date().getFullYear(), condition: 'Good', expectedValue: 0 }
         });
         
@@ -255,6 +271,65 @@ export default function EditQuotationPage({ params }: { params: Promise<{ id: st
                 </select>
                 <small>Customer cannot be changed on an existing quotation.</small>
               </div>
+
+              {formData.customer && (
+                <>
+                  <hr className="my-4" />
+                  <h4 className="mt-4" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Enquiry Details</h4>
+                  <div className="grid-2 mt-4">
+                    <div className="form-group">
+                      <label>Enquiry Source</label>
+                      <select value={formData.enquiryDetails.source} onChange={e => setFormData({...formData, enquiryDetails: {...formData.enquiryDetails, source: e.target.value}})}>
+                        <option value="">-- SELECT --</option>
+                        {ENQUIRY_SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>GST Category</label>
+                      <select value={formData.enquiryDetails.gstCategory} onChange={e => setFormData({...formData, enquiryDetails: {...formData.enquiryDetails, gstCategory: e.target.value}})}>
+                        <option value="">-- SELECT --</option>
+                        {GST_CATEGORIES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                      <label>Relation</label>
+                      <div className="multi-input" style={{ display: 'flex', gap: '0.5rem' }}>
+                        <select style={{ width: '120px' }} value={formData.enquiryDetails.relation || ''} onChange={e => setFormData({...formData, enquiryDetails: {...formData.enquiryDetails, relation: e.target.value}})}>
+                          <option value="">-- SELECT --</option>
+                          {RELATIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <input type="text" style={{ flex: 1 }} value={formData.enquiryDetails.relationName || ''} onChange={e => setFormData({...formData, enquiryDetails: {...formData.enquiryDetails, relationName: e.target.value}})} placeholder="Relative's Name" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <hr className="my-4" />
+                  <h4 className="mt-4" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Location Details</h4>
+                  <div className="grid-2 mt-4">
+                    <div className="form-group">
+                      <label>Showroom Location</label>
+                      <select value={formData.location.showroom} onChange={e => setFormData({...formData, location: {...formData.location, showroom: e.target.value}})}>
+                        <option value="">-- SELECT --</option>
+                        {SHOWROOMS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Place Of Supply</label>
+                      <select value={formData.location.placeOfSupply} onChange={e => setFormData({...formData, location: {...formData.location, placeOfSupply: e.target.value}})}>
+                        <option value="">-- SELECT --</option>
+                        {PLACES_OF_SUPPLY.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>State</label>
+                      <select value={formData.location.state} onChange={e => setFormData({...formData, location: {...formData.location, state: e.target.value}})}>
+                        <option value="">-- SELECT --</option>
+                        {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -328,7 +403,7 @@ export default function EditQuotationPage({ params }: { params: Promise<{ id: st
 
           {step === 4 && (
             <div className="step-content">
-              <h3>Step 4: Charges & Exchange</h3>
+              <h3>Step 4: Charges, Finance & Exchange</h3>
               <div className="grid-2 mt-4">
                 <div className="form-group">
                   <label>Handling Charges</label>
@@ -343,6 +418,54 @@ export default function EditQuotationPage({ params }: { params: Promise<{ id: st
                   <input type="number" value={formData.charges.extendedWarranty} onChange={e => handleChargeChange('extendedWarranty', e.target.value)} />
                 </div>
               </div>
+              
+              <hr className="my-4" />
+              
+              <h4 className="mt-4" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Finance Details</h4>
+              <div className="grid-2 mt-4">
+                <div className="form-group">
+                  <label>Finance Type</label>
+                  <select value={formData.finance.type} onChange={e => setFormData({...formData, finance: {...formData.finance, type: e.target.value}})}>
+                    <option value="">-- SELECT --</option>
+                    {FINANCE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                {(formData.finance.type === 'Finance' || formData.finance.type === 'Lease') && (
+                  <>
+                    <div className="form-group">
+                      <label>Agent Type</label>
+                      <select value={formData.finance.agentType} onChange={e => setFormData({...formData, finance: {...formData.finance, agentType: e.target.value}})}>
+                        <option value="">-- SELECT --</option>
+                        {AGENT_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Financer (Bank)</label>
+                      <select value={formData.finance.financer} onChange={e => setFormData({...formData, finance: {...formData.finance, financer: e.target.value}})}>
+                        <option value="">-- SELECT --</option>
+                        {FINANCERS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Down Payment (₹)</label>
+                      <input type="number" min="0" value={formData.finance.downPayment || ''} onChange={e => setFormData({...formData, finance: {...formData.finance, downPayment: Number(e.target.value)}})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Loan Amount (₹)</label>
+                      <input type="number" min="0" value={formData.finance.loanAmount || ''} onChange={e => setFormData({...formData, finance: {...formData.finance, loanAmount: Number(e.target.value)}})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Interest Rate (%)</label>
+                      <input type="number" step="0.1" min="0" value={formData.finance.interestRate || ''} onChange={e => setFormData({...formData, finance: {...formData.finance, interestRate: Number(e.target.value)}})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Tenure (Years)</label>
+                      <input type="number" min="0" value={formData.finance.tenureYears || ''} onChange={e => setFormData({...formData, finance: {...formData.finance, tenureYears: Number(e.target.value)}})} />
+                    </div>
+                  </>
+                )}
+              </div>
+
               <hr className="my-4" />
               <div className="form-group checkbox-group">
                 <label><input type="checkbox" checked={hasExchange} onChange={e => setHasExchange(e.target.checked)} /> Exchange vehicle</label>
@@ -466,28 +589,55 @@ export default function EditQuotationPage({ params }: { params: Promise<{ id: st
               <h3>Step 7: Review & Save</h3>
               {totals && (
                 <div className="review-summary mt-4">
-                  <table className="summary-table">
-                    <tbody>
-                      <tr><td>Base Price</td><td className="text-right">₹{totals.basePrice.toLocaleString()}</td></tr>
-                      <tr><td>GST/Cess</td><td className="text-right">₹{(totals.gstAmount + totals.cessAmount).toLocaleString()}</td></tr>
-                      <tr><td><strong>Ex-Showroom</strong></td><td className="text-right"><strong>₹{totals.exShowroomPrice.toLocaleString()}</strong></td></tr>
-                      <tr><td>RTO & Insurance</td><td className="text-right">₹{(totals.rtoAmount + totals.insuranceAmount).toLocaleString()}</td></tr>
-                      <tr><td>Accessories Total ({formData.accessories.length})</td><td className="text-right">₹{totals.accessoriesTotal.toLocaleString()}</td></tr>
-                      <tr><td>Other Charges</td><td className="text-right">₹{(totals.handlingCharges + totals.extendedWarranty + totals.fastagCharges).toLocaleString()}</td></tr>
-                      <tr className="discount"><td>Total Discount</td><td className="text-right">- ₹{totals.totalDiscount.toLocaleString()}</td></tr>
-                      {hasExchange && <tr className="discount"><td>Exchange Value</td><td className="text-right">- ₹{totals.exVal.toLocaleString()}</td></tr>}
-                      <tr className="final-price">
-                        <td><strong>Final On-Road Price</strong></td>
-                        <td className="text-right"><strong>₹{totals.finalOnRoadPrice.toLocaleString()}</strong></td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div className="review-section">
+                    <h4>Car Selection</h4>
+                    <p>{selectedCarDetails ? `${selectedCarDetails.name} ${selectedCarDetails.variant}` : 'None'} - {formData.selectedColor}</p>
+                  </div>
+
+                  <div className="review-section">
+                    <h4>Location & Enquiry</h4>
+                    <p className="text-sm"><strong>Showroom:</strong> {formData.location.showroom || '-'} | <strong>Place of Supply:</strong> {formData.location.placeOfSupply || '-'} | <strong>State:</strong> {formData.location.state || '-'}</p>
+                    <p className="text-sm"><strong>Enquiry Source:</strong> {formData.enquiryDetails.source || '-'} | <strong>GST:</strong> {formData.enquiryDetails.gstCategory || '-'} | <strong>Relation:</strong> {formData.enquiryDetails.relation || '-'}</p>
+                  </div>
+
+                  {formData.finance.type && (
+                    <div className="review-section">
+                      <h4>Finance Details</h4>
+                      <p className="text-sm"><strong>Type:</strong> {formData.finance.type} {formData.finance.agentType ? `(${formData.finance.agentType})` : ''} | <strong>Bank:</strong> {formData.finance.financer || '-'}</p>
+                      <p className="text-sm"><strong>Down Payment:</strong> ₹{formData.finance.downPayment?.toLocaleString('en-IN') || 0} | <strong>Loan:</strong> ₹{formData.finance.loanAmount?.toLocaleString('en-IN') || 0} | <strong>Interest:</strong> {formData.finance.interestRate || 0}% | <strong>Tenure:</strong> {formData.finance.tenureYears || 0} Yrs</p>
+                    </div>
+                  )}
+
+                  <div className="review-section mt-4">
+                    <h4>Price Breakdown</h4>
+                    <table className="summary-table">
+                      <tbody>
+                        <tr><td>Base Price</td><td className="text-right">₹{totals.basePrice.toLocaleString('en-IN')}</td></tr>
+                        <tr><td>GST/Cess</td><td className="text-right">₹{(totals.gstAmount + totals.cessAmount).toLocaleString('en-IN')}</td></tr>
+                        <tr><td><strong>Ex-Showroom</strong></td><td className="text-right"><strong>₹{totals.exShowroomPrice.toLocaleString('en-IN')}</strong></td></tr>
+                        <tr><td>RTO & Insurance</td><td className="text-right">₹{(totals.rtoAmount + totals.insuranceAmount).toLocaleString('en-IN')}</td></tr>
+                        <tr><td>Accessories Total ({formData.accessories.length})</td><td className="text-right">₹{totals.accessoriesTotal.toLocaleString('en-IN')}</td></tr>
+                        <tr><td>Other Charges</td><td className="text-right">₹{(totals.handlingCharges + totals.extendedWarranty + totals.fastagCharges).toLocaleString('en-IN')}</td></tr>
+                        <tr className="discount"><td>Total Discount</td><td className="text-right">- ₹{totals.totalDiscount.toLocaleString('en-IN')}</td></tr>
+                        {hasExchange && <tr className="discount"><td>Exchange Value</td><td className="text-right">- ₹{totals.exVal.toLocaleString('en-IN')}</td></tr>}
+                        <tr className="final-price">
+                          <td><strong>Final On-Road Price</strong></td>
+                          <td className="text-right"><strong>₹{totals.finalOnRoadPrice.toLocaleString('en-IN')}</strong></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
               <div className="action-buttons mt-4">
-                <button className="btn btn-primary" disabled={isResubmitting} onClick={() => submitUpdate()}>
+                <button className="btn btn-outline" disabled={isResubmitting} onClick={() => submitUpdate()}>
                   Save Changes
                 </button>
+                {initialStatus === 'Draft' && (
+                  <button className="btn btn-primary" disabled={isResubmitting} onClick={() => submitUpdate('Pending Approval')}>
+                    Submit for Manager Approval
+                  </button>
+                )}
                 {initialStatus === 'Rejected' && (
                   <button className="btn btn-primary" disabled={isResubmitting} onClick={() => submitUpdate('Pending Approval')}>
                     Resubmit for Approval
